@@ -87,9 +87,11 @@ impl Field {
             Err("Wrong field format".into())
         }
         else {
+            let data = row.iter().cloned().skip(2).collect::<Vec<_>>().join(" "); 
+
             Ok(Field {
-                number: row[0].parse::<u32>().unwrap(),
-                value: DataValue::from_str(row[1], row[2])?,
+                number: row[0].parse::<u32>()?,
+                value: DataValue::from_str(row[1], &data)?,
             })
         }
     }

@@ -26,20 +26,24 @@ fn read_line() -> String {
     input.trim().to_string()
 }
 
-fn read_message() -> Vec<Field> {
-    let mut result = Vec::new();
+fn read_message() -> Result<Vec<Field>, Box<dyn Error>> {
+    let mut result: Vec<Field> = Vec::new();
     let mut line = read_line();
     while line.len() > 1 {
-        result.push(Field::from_str(&line).unwrap());
+        let field = Field::from_str(&line).unwrap();
+        if result.iter().any(|f| f.number == field.number) {
+            return Err("Duplicate field number".into());
+        }
+        result.push(field);
         line = read_line();
     }
-    result
+    Ok(result)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mode = Modes::from_args();
 
-    let message = read_message();
+    let message = read_message()?;
     let mut buf: Vec<u8> = Vec::new();
     // Bitmap
     buf.extend_from_slice(&build_bitmap(&message).to_le_bytes());
@@ -51,14 +55,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         Modes::Tcp{ addr } => {
             let mut stream = TcpStream::connect(addr)
                 .expect("Couldn't connect to the server...");
-            match stream.write(&buf[..]) {
-                Ok(x) => println!("Sent {} bytes", x),
-                Err(e) => println!("Error: {}", e)
-            }
+            let n = stream.write(&buf[..])?; 
+            println!("Sent {} bytes", n);
         },
         Modes::File{ file_name } => {
             let mut file = File::create(&file_name)?;
-            file.write_all(&buf)?;
+            let n = file.write(&buf)?;
+            println!("Written {} bytes", n);
         },
     }
     
