@@ -1,0 +1,8 @@
+[package]
+name = "tcp_client"
+version = "0.1.0"
+authors = ["vita"]
+edition = "2018"
+
+[dependencies]
+hex = "*"
