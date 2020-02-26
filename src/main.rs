@@ -20,28 +20,29 @@ enum Modes {
     },
 }
 
-fn read_line() -> String {
+fn read_line() -> Result<String, Box<dyn Error>> {
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    input.trim().to_string()
+    std::io::stdin().read_line(&mut input)?;
+    Ok(input.trim().to_string())
 }
 
 fn read_message() -> Result<Vec<Field>, Box<dyn Error>> {
     let mut result: Vec<Field> = Vec::new();
-    let mut line = read_line();
+    let mut line = read_line()?;
     while line.len() > 1 {
-        let field = Field::from_str(&line).unwrap();
+        let field = Field::from_str(&line)?;
         if result.iter().any(|f| f.number == field.number) {
             return Err("Duplicate field number".into());
         }
         result.push(field);
-        line = read_line();
+        line = read_line()?;
     }
     Ok(result)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mode = Modes::from_args();
+    println!("Enter message");
 
     let message = read_message()?;
     let mut buf: Vec<u8> = Vec::new();
