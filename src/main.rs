@@ -11,11 +11,11 @@ use std::error::Error;
 #[structopt(name = "tcp_client", about = "Example of tcp message client")]
 enum Modes {
     Tcp {
-        #[structopt(short = "a", long)]
+        #[structopt(short, long)]
         addr: String
     },
     File {
-        #[structopt(short = "f", long)]
+        #[structopt(short, long)]
         file_name: String
     },
 }
