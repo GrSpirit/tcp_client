@@ -87,10 +87,14 @@ impl Field {
             Err("Wrong field format".into())
         }
         else {
+            let number: u32 = row[0].parse::<u32>()?;
+            if number >= 0u32.count_zeros() {
+                return Err("Maximum field number exceeded".into());
+            }
             let data = row.iter().cloned().skip(2).collect::<Vec<_>>().join(" "); 
 
             Ok(Field {
-                number: row[0].parse::<u32>()?,
+                number: number, 
                 value: DataValue::from_str(row[1], &data)?,
             })
         }
@@ -98,6 +102,6 @@ impl Field {
 }
 
 pub fn build_bitmap(message: &[Field]) -> u32 {
-    message.iter().fold(0, |r, f| r | f.number)
+    message.iter().fold(0, |r, f| r | (1 << f.number))
 }
 
