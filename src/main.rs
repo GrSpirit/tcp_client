@@ -3,7 +3,6 @@ use message::*;
 
 use structopt::StructOpt;
 use std::io::prelude::*;
-use std::io;
 use std::net::{TcpStream};
 use std::fs::File;
 use std::error::Error;
@@ -26,16 +25,24 @@ enum OutStream {
     FileStream(File)
 }
 
-impl OutStream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+impl Write for OutStream {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self {
             OutStream::TcpStream(strm) => strm.write(buf),
             OutStream::FileStream(strm) => strm.write(buf)
         }
     }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            OutStream::TcpStream(strm) => strm.flush(),
+            OutStream::FileStream(strm) => strm.flush()
+        }
+
+    }
 }
 
-fn read_line() -> Result<String, Box<dyn Error>> {
+fn read_line() -> std::io::Result<String> {
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
     Ok(input.trim().to_string())
