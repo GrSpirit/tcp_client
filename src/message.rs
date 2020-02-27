@@ -1,5 +1,8 @@
 use std::error::Error;
+use std::collections::BTreeMap;
 use hex;
+
+pub type Message = BTreeMap<u32, DataValue>;
 
 #[derive(Debug)]
 pub struct FixNumber {
@@ -75,33 +78,73 @@ impl DataValue {
 }
 
 #[derive(Debug)]
-pub struct Field {
-    pub number: u32,
-    pub value: DataValue,
+pub enum AddStrError {
+    ParseStr(Box<dyn Error>),
+    FormatStr(),
+    MaxNumber(u32),
+    DuplicateNumber(u32)
 }
 
-impl Field {
-    pub fn from_str(data: &str) -> Result<Field, Box<dyn Error>> {
-        let row: Vec<_> = data.split_whitespace().collect();
-        if row.len() < 3 {
-            Err("Wrong field format".into())
-        }
-        else {
-            let number: u32 = row[0].parse::<u32>()?;
-            if number >= 0u32.count_zeros() {
-                return Err("Maximum field number exceeded".into());
-            }
-            let data = row.iter().cloned().skip(2).collect::<Vec<_>>().join(" "); 
-
-            Ok(Field {
-                number: number, 
-                value: DataValue::from_str(row[1], &data)?,
-            })
+impl std::fmt::Display for AddStrError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use AddStrError::*;
+        match *self {
+            ParseStr(ref err) => err.fmt(f),
+            FormatStr() => write!(f, "Wrong field format"),
+            MaxNumber(x) => write!(f, "The number {} exceeded maximum", x),
+            DuplicateNumber(x) => write!(f, "The number {} is duplicated", x)
         }
     }
 }
 
-pub fn build_bitmap(message: &[Field]) -> u32 {
-    message.iter().fold(0, |r, f| r | (1 << f.number))
+impl Error for AddStrError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+}
+
+impl From<std::num::ParseIntError> for AddStrError {
+    fn from(err: std::num::ParseIntError) -> AddStrError {
+        AddStrError::ParseStr(Box::new(err))
+    }
+}
+
+impl From<Box<dyn Error>> for AddStrError {
+    fn from(err: Box<dyn Error>) -> AddStrError {
+        AddStrError::ParseStr(err)
+    }
+}
+
+
+pub trait AddStr {
+    fn add_str(&mut self, data: &str) -> Result<(), AddStrError>;
+}
+
+impl AddStr for Message {
+    fn add_str(&mut self, data: &str) -> Result<(), AddStrError> {
+        let row: Vec<_> = data.split_whitespace().collect();
+        if row.len() < 3 {
+            Err(AddStrError::FormatStr())
+        }
+        else {
+            let number: u32 = row[0].parse()?;
+            if number >= 0u32.count_zeros() {
+                //return Err("Maximum field number exceeded".into());
+                return Err(AddStrError::MaxNumber(number));
+            }
+            let data = row.iter().cloned().skip(2).collect::<Vec<_>>().join(" ");
+            match self.get(&number) {
+                None => self.insert(number, DataValue::from_str(row[1], &data)?),
+                _ => return Err(AddStrError::DuplicateNumber(number))
+                //_ => return Err("Duplicate field number".into())
+            };
+
+            Ok(())
+        }
+    }
+}
+
+pub fn build_bitmap(message: &Message) -> u32 {
+    message.keys().fold(0, |r, f| r | (1u32 << f))
 }
 

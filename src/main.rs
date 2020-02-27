@@ -48,15 +48,14 @@ fn read_line() -> std::io::Result<String> {
     Ok(input.trim().to_string())
 }
 
-fn read_message() -> Result<Vec<Field>, Box<dyn Error>> {
-    let mut result: Vec<Field> = Vec::new();
+fn read_message() -> std::io::Result<Message> {
+    let mut result: Message = Message::new();
     let mut line = read_line()?;
     while line.len() > 1 {
-        let field = Field::from_str(&line)?;
-        if result.iter().any(|f| f.number == field.number) {
-            return Err("Duplicate field number".into());
-        }
-        result.push(field);
+        match result.add_str(&line) {
+            Err(err) => println!("{}", err),
+            _ => ()
+        };
         line = read_line()?;
     }
     Ok(result)
@@ -80,8 +79,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut buf: Vec<u8> = Vec::new();
     // Bitmap
     buf.extend_from_slice(&build_bitmap(&message).to_le_bytes());
-    message.iter().for_each(|f|
-        buf.append(&mut f.value.to_bytes())
+    message.values().for_each(|f|
+        buf.append(&mut f.to_bytes())
     );
 
     let n = out_stream.write(&buf)?;
