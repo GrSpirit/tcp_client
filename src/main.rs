@@ -3,13 +3,14 @@ use message::*;
 
 use structopt::StructOpt;
 use std::io::prelude::*;
+use std::io;
 use std::net::{TcpStream};
 use std::fs::File;
 use std::error::Error;
 
 #[derive(StructOpt)]
 #[structopt(name = "tcp_client", about = "Example of tcp message client")]
-enum Modes {
+enum ProgramMode {
     Tcp {
         #[structopt(short, long)]
         addr: String
@@ -18,6 +19,20 @@ enum Modes {
         #[structopt(short, long)]
         file_name: String
     },
+}
+
+enum OutStream {
+    TcpStream(TcpStream),
+    FileStream(File)
+}
+
+impl OutStream {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match self {
+            OutStream::TcpStream(strm) => strm.write(buf),
+            OutStream::FileStream(strm) => strm.write(buf)
+        }
+    }
 }
 
 fn read_line() -> Result<String, Box<dyn Error>> {
@@ -41,7 +56,17 @@ fn read_message() -> Result<Vec<Field>, Box<dyn Error>> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mode = Modes::from_args();
+    let mode = ProgramMode::from_args();
+
+    let mut out_stream = match mode {
+        ProgramMode::Tcp{ addr } => 
+            OutStream::TcpStream(TcpStream::connect(addr)
+                .expect("Couldn't connect to the server...")),
+        ProgramMode::File{ file_name } =>
+            OutStream::FileStream(File::create(&file_name)
+                .expect("Couldn't create a file...")),
+    };
+
     println!("Enter message");
 
     let message = read_message()?;
@@ -52,19 +77,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         buf.append(&mut f.value.to_bytes())
     );
 
-    match mode {
-        Modes::Tcp{ addr } => {
-            let mut stream = TcpStream::connect(addr)
-                .expect("Couldn't connect to the server...");
-            let n = stream.write(&buf[..])?; 
-            println!("Sent {} bytes", n);
-        },
-        Modes::File{ file_name } => {
-            let mut file = File::create(&file_name)?;
-            let n = file.write(&buf)?;
-            println!("Written {} bytes", n);
-        },
-    }
+    let n = out_stream.write(&buf)?;
+    println!("Written {} bytes", n);
     
     println!("Quit");
     Ok(())
